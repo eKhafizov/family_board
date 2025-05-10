@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from app import models, schemas
+from decimal import Decimal
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -74,3 +75,15 @@ def update_task_status(db: Session, task_id: int, done_by_child: bool = None, do
     db.commit()
     db.refresh(db_task)
     return db_task
+
+
+
+def top_up_family(db: Session, family_id: int, amount: Decimal):
+    """Увеличить balance указанной семьи на amount."""
+    fam = db.query(models.Family).get(family_id)
+    if not fam:
+        return None
+    fam.balance += amount
+    db.commit()
+    db.refresh(fam)
+    return fam

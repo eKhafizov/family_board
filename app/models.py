@@ -23,6 +23,7 @@ class Family(Base):
 
     members        = relationship("User", back_populates="family")
     tasks          = relationship("Task", back_populates="family")
+    balance        = Column(Numeric(12,2), nullable=False, default=0)
 
 
 class Task(Base):

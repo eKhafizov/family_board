@@ -59,3 +59,8 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     user_id: Optional[int] = None
+
+
+
+class TopUp(BaseModel):
+    amount: condecimal(max_digits=12, decimal_places=2)
