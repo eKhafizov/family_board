@@ -1,45 +1,28 @@
-from datetime import datetime
-from typing import Optional, List
 from pydantic import BaseModel, EmailStr, condecimal
+from decimal import Decimal
+from typing import Optional, List
 
-# --- Task ---
-class TaskBase(BaseModel):
-    description: str
-    price: condecimal(max_digits=10, decimal_places=2)
-    deadline: Optional[datetime] = None
-
-class TaskCreate(TaskBase):
-    child_id: Optional[int] = None
-
-class TaskRead(TaskBase):
-    id: int
-    done_by_child: bool
-    done_by_parent: bool
-    archived: bool
-    parent_id: int
-    family_id: int
-    child_id: Optional[int]
-
-    class Config:
-        from_attributes = True
-
-# --- User ---
+# --- Users ---
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: str               # "parent" или "child"
-    family_id: Optional[int]
+    role: str
+    family_id: int
 
 class UserRead(BaseModel):
     id: int
     email: EmailStr
     role: str
-    family_id: Optional[int]
+    family_id: int
 
     class Config:
         from_attributes = True
 
-# --- Family ---
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+# --- Families ---
 class FamilyCreate(BaseModel):
     name: str
     account_number: str
@@ -48,19 +31,28 @@ class FamilyRead(BaseModel):
     id: int
     name: str
     account_number: str
+    balance: Decimal
 
     class Config:
         from_attributes = True
 
-# --- JWT ---
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    user_id: Optional[int] = None
-
-
-
 class TopUp(BaseModel):
     amount: condecimal(max_digits=12, decimal_places=2)
+
+# --- Tasks ---
+class TaskCreate(BaseModel):
+    task: str
+    price: condecimal(max_digits=10, decimal_places=2)
+    deadline: Optional[str]
+
+class TaskRead(BaseModel):
+    id: int
+    task: str
+    price: Decimal
+    deadline: Optional[str]
+    done_by_child: bool
+    done_by_parent: bool
+    archived: bool
+
+    class Config:
+        from_attributes = True

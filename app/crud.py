@@ -1,85 +1,64 @@
-from sqlalchemy.orm import Session
-from passlib.context import CryptContext
-from app import models, schemas
 from decimal import Decimal
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from app import models, schemas
+from app.core.security import verify_password
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def create_family(db: Session, family_in: schemas.FamilyCreate):
+    fam = models.Family(
+        name=family_in.name,
+        account_number=family_in.account_number,
+        balance=Decimal("0.00")
+    )
+    db.add(fam)
+    try:
+        db.commit()
+        db.refresh(fam)
+        return fam
+    except IntegrityError as e:
+        db.rollback()
+        if "account_number" in str(e.orig).lower():
+            raise HTTPException(status_code=400, detail="Account number already registered")
+        raise
 
-# --- Users ---
+def get_family(db: Session, family_id: int):
+    return db.query(models.Family).get(family_id)
+
 def get_user(db: Session, user_id: int):
-    return db.query(models.User).filter(models.User.id == user_id).first()
+    return db.query(models.User).get(user_id)
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
-def create_user(db: Session, user: schemas.UserCreate):
-    hashed = pwd_context.hash(user.password)
-    db_user = models.User(
-        email=user.email,
-        hashed_password=hashed,
-        role=user.role,
-        family_id=user.family_id,
+def create_user(db: Session, user_in: schemas.UserCreate, hashed_password: str):
+    user = models.User(
+        email=user_in.email,
+        hashed_password=hashed_password,
+        role=user_in.role,
+        family_id=user_in.family_id
     )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+    db.add(user)
+    try:
+        db.commit()
+        db.refresh(user)
+        return user
+    except IntegrityError as e:
+        db.rollback()
+        msg = str(e.orig).lower()
+        if "unique constraint" in msg or "users_email_key" in msg:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        if "foreign key constraint" in msg:
+            raise HTTPException(status_code=400, detail="Family not found")
+        raise
 
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
-    if not user or not pwd_context.verify(password, user.hashed_password):
+    if not user or not verify_password(password, user.hashed_password):
         return None
     return user
 
-# --- Families ---
-def create_family(db: Session, family: schemas.FamilyCreate):
-    db_family = models.Family(
-        name=family.name,
-        account_number=family.account_number,
-    )
-    db.add(db_family)
-    db.commit()
-    db.refresh(db_family)
-    return db_family
-
-# --- Tasks ---
-def get_tasks(db: Session, family_id: int, skip: int = 0, limit: int = 100):
-    return (
-        db.query(models.Task)
-        .filter(models.Task.family_id == family_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-
-def create_task(db: Session, task: schemas.TaskCreate, parent_id: int, family_id: int):
-    db_task = models.Task(
-        **task.dict(),
-        parent_id=parent_id,
-        family_id=family_id,
-    )
-    db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
-    return db_task
-
-def update_task_status(db: Session, task_id: int, done_by_child: bool = None, done_by_parent: bool = None):
-    db_task = db.query(models.Task).get(task_id)
-    if done_by_child is not None:
-        db_task.done_by_child = done_by_child
-    if done_by_parent is not None:
-        db_task.done_by_parent = done_by_parent
-        if done_by_parent:
-            db_task.archived = True
-            # TODO: финансовые операции
-    db.commit()
-    db.refresh(db_task)
-    return db_task
-
-
-
 def top_up_family(db: Session, family_id: int, amount: Decimal):
-    """Увеличить balance указанной семьи на amount."""
     fam = db.query(models.Family).get(family_id)
     if not fam:
         return None
@@ -87,3 +66,37 @@ def top_up_family(db: Session, family_id: int, amount: Decimal):
     db.commit()
     db.refresh(fam)
     return fam
+
+def create_task(db: Session, family_id: int, task_in: schemas.TaskCreate):
+    task = models.Task(
+        task=task_in.task,
+        price=task_in.price,
+        deadline=task_in.deadline,
+        family_id=family_id
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+def get_tasks_for_family(db: Session, family_id: int):
+    return db.query(models.Task).filter(models.Task.family_id==family_id, models.Task.archived==False).all()
+
+def mark_done_child(db: Session, task_id: int):
+    task = db.query(models.Task).get(task_id)
+    if not task:
+        return None
+    task.done_by_child = True
+    db.commit()
+    db.refresh(task)
+    return task
+
+def mark_done_parent(db: Session, task_id: int):
+    task = db.query(models.Task).get(task_id)
+    if not task or not task.done_by_child:
+        return None
+    task.done_by_parent = True
+    task.archived = True
+    db.commit()
+    db.refresh(task)
+    return task
