@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from app.database import Base, engine
 from app.api import users, families, tasks
+from fastapi.middleware.cors import CORSMiddleware
 
+Base.metadata.create_all(bind=engine)
 # Если не используете Alembic, то:
 # Base.metadata.create_all(bind=engine)
 
