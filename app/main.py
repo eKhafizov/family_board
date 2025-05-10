@@ -1,14 +1,27 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.api import users, families, tasks
-from fastapi.middleware.cors import CORSMiddleware
-
-Base.metadata.create_all(bind=engine)
-# Если не используете Alembic, то:
-# Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-app.include_router(users.router)
-app.include_router(families.router)
-app.include_router(tasks.router)
+#  ———————————
+# Автоматически создаём все таблицы в БД (SQLite test.db)
+try:
+    Base.metadata.create_all(bind=engine)
+    print("✅ SQLite: tables created (or already existed).")
+except Exception as e:
+    print("⚠️  Could not create tables:", e)
+#  ———————————
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(families.router, prefix="/families", tags=["families"])
+app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
