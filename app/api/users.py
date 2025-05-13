@@ -8,15 +8,31 @@ from app.api.dependencies import get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("/register", response_model=schemas.UserRead)
+@router.post("/register", response_model=schemas.User, status_code=201)
 def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    if crud.get_user_by_email(db, user_in.email):
-        raise HTTPException(status_code=400, detail="Email already registered")
-    if not crud.get_family(db, user_in.family_id):
-        raise HTTPException(status_code=400, detail="Family not found")
-    hashed = get_password_hash(user_in.password)
-    user = crud.create_user(db, user_in, hashed)
+    role = user_in.role or "parent"       # пример: первый юзер — родитель
+    family_id = user_in.family_id or None # или сразу создаёте новую семью
+
+    user = models.User(
+        email=user_in.email,
+        full_name=user_in.full_name,
+        hashed_password=pwd_context.hash(user_in.password),
+        role=role,
+        family_id=family_id,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
+# @router.post("/register", response_model=schemas.UserRead)
+# def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+#     if crud.get_user_by_email(db, user_in.email):
+#         raise HTTPException(status_code=400, detail="Email already registered")
+#     if not crud.get_family(db, user_in.family_id):
+#         raise HTTPException(status_code=400, detail="Family not found")
+#     hashed = get_password_hash(user_in.password)
+#     user = crud.create_user(db, user_in, hashed)
+#     return user
 
 @router.post("/token", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):

@@ -5,9 +5,10 @@ from typing import Optional, List
 # --- Users ---
 class UserCreate(BaseModel):
     email: EmailStr
+    full_name: str
     password: str
-    role: str
-    family_id: int
+    role: Optional[str] = None      # теперь не обязателен
+    family_id: Optional[int] = None # теперь не обязателен
 
 class UserRead(BaseModel):
     id: int
