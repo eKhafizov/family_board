@@ -2,3 +2,6 @@ uvicorn app.main:app --reload
 git add requirements.txt
 git commit -m "Switch to pip/requirements, remove Pipfile"
 git push
+
+работает регистрация
+не работает логин
