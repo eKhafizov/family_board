@@ -19,8 +19,7 @@ except Exception as e:
     print("⚠️  Could not create tables:", e)
 #  ———————————
 
-app.add_middleware(
-    CORSMiddleware,
+
 app.add_middleware(
 
     CORSMiddleware,
