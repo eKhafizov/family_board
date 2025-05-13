@@ -3,12 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from app import models, schemas
 from app.database import SessionLocal
-from app.security import (
-    get_password_hash,
-    verify_password,
-    create_access_token,
-    get_current_user,
-)
+from app.security import get_password_hash, verify_password, create_access_token, get_current_user
 
 # Зависимость для доступа к БД
 
@@ -18,6 +13,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Модель для логина по JSON {username, password}
+class LoginData(BaseModel):
+    username: EmailStr
+    password: str
 
 router = APIRouter()
 
@@ -46,12 +46,7 @@ def register(
     db.refresh(user)
     return user
 
-# Модель для логина по JSON {email, password}
-class LoginData(BaseModel):
-    email: EmailStr
-    password: str
-
-# Эндпоинт получения токена — принимает JSON вместо form-data
+# Логин и получение токена
 @router.post(
     "/token",
     response_model=schemas.Token,
@@ -60,7 +55,7 @@ def login(
     data: LoginData,
     db: Session = Depends(get_db),
 ):
-    user = db.query(models.User).filter_by(email=data.email).first()
+    user = db.query(models.User).filter_by(email=data.username).first()
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
