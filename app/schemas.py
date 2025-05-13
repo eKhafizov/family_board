@@ -14,7 +14,8 @@ class UserCreate(UserBase):
     password: str
     role: Optional[str] = None      # необязательно
     family_id: Optional[int] = None # необязательно
-
+    role: Optional[str] = None      # ← дефолт None
+    family_id: Optional[int] = None # ← дефолт None
 
 # Схема для ответа на клиент
 class User(UserBase):
