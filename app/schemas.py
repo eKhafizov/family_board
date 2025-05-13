@@ -1,44 +1,59 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
-
-# Базовая схема пользователя
+# ——— User —————————————————————————————————————————
 class UserBase(BaseModel):
     email: EmailStr
     full_name: str
 
-
-# Схема для создания пользователя
 class UserCreate(UserBase):
     password: str
-    role: Optional[str] = None      # необязательно
-    family_id: Optional[int] = None # необязательно
-    role: Optional[str] = None      # ← дефолт None
-    family_id: Optional[int] = None # ← дефолт None
 
-# Схема для ответа на клиент
 class User(UserBase):
     id: int
-    role: Optional[str]
+    role: str
     family_id: Optional[int]
     created_at: datetime
+    class Config:
+        orm_mode = True
 
-    model_config = {"from_attributes": True}  # Pydantic v2: чтение из ORM-моделей
-
-
-# Схема для логина
-class UserLogin(BaseModel):
-    username: EmailStr
-    password: str
-
-
-# JWT-токен
+# ——— Token ————————————————————————————————————————
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-
-# Дополнительные данные токена
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    email: Optional[str] = None
+
+# ——— Family ——————————————————————————————————————
+class FamilyBase(BaseModel):
+    name: Optional[str] = None
+
+class FamilyCreate(FamilyBase):
+    pass
+
+class Family(FamilyBase):
+    id: int
+    created_at: datetime
+    class Config:
+        orm_mode = True
+
+# ——— Task ————————————————————————————————————————
+class TaskBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    done_by_parent: bool = False
+
+class TaskCreate(TaskBase):
+    assigned_to_child_id: Optional[int] = None
+    family_id: Optional[int] = None
+
+class Task(TaskBase):
+    id: int
+    family_id: Optional[int]
+    assigned_to_child_id: Optional[int]
+    is_completed: bool
+    created_at: datetime
+    class Config:
+        orm_mode = True

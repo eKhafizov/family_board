@@ -1,36 +1,37 @@
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, Boolean
+import datetime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 class Family(Base):
     __tablename__ = "families"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-    account_number = Column(String, unique=True, nullable=False)
-    balance = Column(Numeric(12,2), nullable=False, default=0)
-
-    users = relationship("User", back_populates="family")
+    name = Column(String, default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    members = relationship("User", back_populates="family")
     tasks = relationship("Task", back_populates="family")
 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, nullable=False)  # "parent" или "child"
-    family_id = Column(Integer, ForeignKey("families.id"), nullable=False)
-
-    family = relationship("Family", back_populates="users")
+    role = Column(String, default="parent")
+    family_id = Column(Integer, ForeignKey("families.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    family = relationship("Family", back_populates="members")
+    tasks = relationship("Task", back_populates="assigned_to")
 
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)
-    task = Column(String, nullable=False)
-    price = Column(Numeric(10,2), nullable=False)
-    deadline = Column(String, nullable=True)
-    done_by_child = Column(Boolean, default=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, default="")
     done_by_parent = Column(Boolean, default=False)
-    archived = Column(Boolean, default=False)
-    family_id = Column(Integer, ForeignKey("families.id"), nullable=False)
-
+    is_completed = Column(Boolean, default=False)
+    family_id = Column(Integer, ForeignKey("families.id"), nullable=True)
+    assigned_to_child_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
     family = relationship("Family", back_populates="tasks")
+    assigned_to = relationship("User", back_populates="tasks")
