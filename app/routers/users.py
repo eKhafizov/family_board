@@ -1,15 +1,17 @@
+# app/routers/users.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from app import schemas, models
-from app.database import SessionLocal, Base, engine, SessionLocal, Base  # <-- get_db не нужен здесь
+from app import models, schemas
+from app.database import SessionLocal
 from app.security import (
-    verify_password,
     get_password_hash,
+    verify_password,
     create_access_token,
     get_current_user,
 )
 
+# простой get_db
 def get_db():
     db = SessionLocal()
     try:
@@ -17,19 +19,22 @@ def get_db():
     finally:
         db.close()
 
-
 router = APIRouter()
 
 @router.post("/register", response_model=schemas.User, status_code=201)
 def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    # проверяем, нет ли уже такого email
     if db.query(models.User).filter_by(email=user_in.email).first():
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Email already registered")
+    # создаём пользователя: full_name = email
     user = models.User(
         email=user_in.email,
-        full_name=user_in.full_name,
+        full_name=user_in.email,  # вместо обязательного поля full_name
         hashed_password=get_password_hash(user_in.password),
     )
-    db.add(user); db.commit(); db.refresh(user)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 @router.post("/token", response_model=schemas.Token)
