@@ -47,6 +47,19 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     done_by_parent: bool = False
 
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    done_by_parent: Optional[bool] = None
+    is_completed: Optional[bool] = None
+    family_id: Optional[int] = None
+    assigned_to_child_id: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+        
+        
 class TaskCreate(TaskBase):
     assigned_to_child_id: Optional[int] = None
     family_id: Optional[int] = None
