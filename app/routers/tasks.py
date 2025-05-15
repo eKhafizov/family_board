@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from app import schemas, models
 from app.security import get_db, get_current_user
-from fastapi import HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Body
 
 router = APIRouter()
 
@@ -14,21 +13,22 @@ def list_tasks(db: Session = Depends(get_db)):
 @router.put(
     "/{task_id}",
     response_model=schemas.Task,
-    summary="Обновить задачу частично или полностью",
+    summary="Обновить задачу частично или полностью"
 )
 def update_task(
     task_id: int = Path(..., description="ID задачи"),
-    data: schemas.TaskUpdate = Depends(),      # или просто data: TaskUpdate
+    data: schemas.TaskUpdate = Body(..., description="Поля для обновления"),
     db: Session = Depends(get_db),
-    user=Depends(get_current_user),
+    user: models.User = Depends(get_current_user),
 ):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    # Применяем только переданные поля
+
     update_data = data.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(task, key, value)
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
     db.commit()
     db.refresh(task)
     return task
