@@ -21,19 +21,30 @@ def create_family(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    # 1) создаём новую семью
-    new = models.Family(name=fam.name or "")
-    db.add(new)
-    db.flush()  # привязать new.id без полного коммита
-
-    # 2) автоматически присваиваем эту семью текущему пользователю
-    user.family_id = new.id
-    db.add(user)
-
-    # 3) завершаем транзакцию одним коммитом
+    new_family = models.Family(name=fam.name or "")
+    db.add(new_family)
     db.commit()
-    db.refresh(new)
-    return new
+    db.refresh(new_family)
+
+    # 2) Привязываем текущего пользователя к этой семье
+    user.family_id = new_family.id
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return new_family
+    # # 1) создаём новую семью
+    # new = models.Family(name=fam.name or "")
+    # db.add(new)
+    # db.flush()  # привязать new.id без полного коммита
+
+    # # 2) автоматически присваиваем эту семью текущему пользователю
+    # user.family_id = new.id
+    # db.add(user)
+
+    # # 3) завершаем транзакцию одним коммитом
+    # db.commit()
+    # db.refresh(new)
+    # return new
 
 @router.post(
     "/{family_id}/topup",
