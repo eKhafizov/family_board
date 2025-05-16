@@ -1,5 +1,4 @@
-
-import os
+import os, sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
@@ -8,6 +7,7 @@ from .routers import users, families, tasks
 app = FastAPI()
 Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
+print("⚠️ DB schema reset (DEV mode)", file=sys.stderr)
 
 print("⚠️ Сброс и пересоздание всех таблиц в SQLite (DEV-режим)", file=os.sys.stderr)
 

@@ -21,6 +21,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(String, default="parent")
     family_id = Column(Integer, ForeignKey("families.id"), nullable=True)
+    child_balance = Column(Integer, default=0, nullable=False)  # баланс ребёнка
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     family = relationship("Family", back_populates="members")
     tasks = relationship("Task", back_populates="assigned_to")
@@ -30,6 +31,7 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     description = Column(Text, default="")
+    price = Column(Integer, default=0, nullable=False)  # цена задачи
     done_by_parent = Column(Boolean, default=False)
     is_completed = Column(Boolean, default=False)
     family_id = Column(Integer, ForeignKey("families.id"), nullable=True)

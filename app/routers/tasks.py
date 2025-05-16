@@ -44,3 +44,38 @@ def create_task(data: schemas.TaskCreate, db: Session = Depends(get_db), user=De
     )
     db.add(task); db.commit(); db.refresh(task)
     return task
+
+@router.post(
+    "/{task_id}/confirm",
+    response_model=schemas.Task,
+    summary="Подтвердить задачу и перевести средства"
+)
+def confirm_task(
+    task_id: int = Path(..., description="ID задачи"),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    # только родитель в своей семье
+    if user.role != "parent" or user.family_id != task.family_id:
+        raise HTTPException(403, "Only parent of this family can confirm")
+    if not task.done_by_child:
+        raise HTTPException(400, "Task not yet completed by child")
+    if task.done_by_parent:
+        raise HTTPException(400, "Task already confirmed")
+
+    # переводим деньги
+    task.done_by_parent = True
+    task.archived = True
+    # уменьшаем баланс семьи
+    fam = db.query(models.Family).filter(models.Family.id == task.family_id).first()
+    fam.balance -= task.price
+    # увеличиваем баланс ребёнка
+    child = db.query(models.User).filter(models.User.id == task.assigned_to_child_id).first()
+    child.child_balance += task.price
+
+    db.commit()
+    db.refresh(task)
+    return task

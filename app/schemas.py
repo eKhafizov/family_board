@@ -15,6 +15,7 @@ class User(UserBase):
     role: str
     family_id: Optional[int]
     created_at: datetime
+    child_balance: int
 
     class Config:
         orm_mode = True
@@ -33,12 +34,15 @@ class FamilyBase(BaseModel):
     balance: Optional[int] = 0
 
 class FamilyCreate(FamilyBase):
-    pass
+    # pass
+    name: Optional[str]
+    balance: Optional[int] = 0
 
 class Family(FamilyBase):
     id: int
     created_at: datetime
     balance: int
+    
 
     class Config:
         orm_mode = True
@@ -65,6 +69,9 @@ class TaskUpdate(BaseModel):
 class TaskCreate(TaskBase):
     assigned_to_child_id: Optional[int] = None
     family_id: Optional[int] = None
+    title: str
+    description: Optional[str] = None
+    price: int
 
 class Task(TaskBase):
     id: int
@@ -72,6 +79,7 @@ class Task(TaskBase):
     assigned_to_child_id: Optional[int]
     is_completed: bool
     created_at: datetime
+    price: int # добавил 
 
     class Config:
         orm_mode = True
