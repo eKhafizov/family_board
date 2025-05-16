@@ -30,6 +30,7 @@ class TokenData(BaseModel):
 # ——— Family ——————————————————————————————————————
 class FamilyBase(BaseModel):
     name: Optional[str] = None
+    balance: Optional[int] = 0
 
 class FamilyCreate(FamilyBase):
     pass
@@ -37,6 +38,7 @@ class FamilyCreate(FamilyBase):
 class Family(FamilyBase):
     id: int
     created_at: datetime
+    balance: int
 
     class Config:
         orm_mode = True
@@ -73,3 +75,12 @@ class Task(TaskBase):
 
     class Config:
         orm_mode = True
+
+
+class TopUp(BaseModel):
+    amount: int  # сколько добавить
+
+    class Config:
+        schema_extra = {
+            "example": {"amount": 100}
+        }

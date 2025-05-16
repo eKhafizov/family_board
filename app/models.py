@@ -10,6 +10,8 @@ class Family(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     members = relationship("User", back_populates="family")
     tasks = relationship("Task", back_populates="family")
+    balance = Column(Integer, default=0, nullable=False)  # 💰 баланс семьи
+
 
 class User(Base):
     __tablename__ = "users"
