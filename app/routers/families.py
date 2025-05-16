@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import Body
 from sqlalchemy.orm import Session
 from typing import List
 from app import schemas, models
@@ -23,7 +24,7 @@ def create_family(fam: schemas.FamilyCreate, db: Session = Depends(get_db), user
 )
 def top_up_family(
     family_id: int = Path(..., description="ID семьи"),
-    data: schemas.TopUp = Depends(),  # тело { amount: int }
+    data: schemas.TopUp = Body(..., description="Сколько добавить"), 
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
