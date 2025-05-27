@@ -4,30 +4,41 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Always use SQLite for simplicity (ignoring external DATABASE_URL)
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+# Проверяем доступность драйвера PostgreSQL
+try:
+    import psycopg2  # noqa: F401
+    _has_psycopg2 = True
+except ImportError:
+    _has_psycopg2 = False
 
-# If using a File-based SQLite DB, we need this arg
+# Если задана внешняя БД и драйвер доступен, используем её, иначе всегда SQLite
+env_db = os.getenv("DATABASE_URL")
+if env_db and _has_psycopg2:
+    DATABASE_URL = env_db
+else:
+    DATABASE_URL = "sqlite:///./test.db"
+
+# Аргументы для SQLite
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
-# Create engine
+# Создаём движок
 engine = create_engine(
     DATABASE_URL,
     connect_args=connect_args,
     pool_pre_ping=True,
 )
 
-# Create session factory
+# Сессии
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
 )
 
-# Base class for models
+# Базовый класс
 Base = declarative_base()
 
-# Dependency for getting DB session
+# Зависимость для FastAPI
 def get_db():
     db = SessionLocal()
     try:
