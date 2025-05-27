@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from app import models, schemas, security
 from app.database import get_db
 
-router = APIRouter(prefix="/users", tags=["users"])
+# router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(tags=["users"])
 
 @router.post(
     "/register",
