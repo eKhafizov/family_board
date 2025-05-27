@@ -14,7 +14,7 @@ class UserCreate(BaseModel):
 class User(UserBase):
     id: int
     role: str
-    family_id: int
+    family_id: Optional[int]
     created_at: datetime
     child_balance: int
 
