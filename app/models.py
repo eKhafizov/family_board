@@ -36,3 +36,35 @@ class Task(Base):
     assigned_to_child_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     family_id = Column(Integer, ForeignKey('families.id'), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+# app/database.py
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+# Always use SQLite at ./test.db for simplicity
+database_file = "./test.db"
+DATABASE_URL = f"sqlite:///{database_file}"
+
+# SQLite-specific arg
+connect_args = {"check_same_thread": False}
+
+# Engine and session
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+)
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
