@@ -1,6 +1,5 @@
 # app/schemas.py
-
-from typing import Optional, Literal
+from typing import Optional, List, Literal
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
@@ -11,16 +10,15 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: Literal['parent', 'child']
-    # Для ребёнка: укажите либо parent_family_id, либо parent_email
-    parent_family_id: Optional[int] = None
-    parent_email: Optional[EmailStr] = None
+    parent_family_id: Optional[int]
+    parent_email: Optional[EmailStr]
 
 class User(UserBase):
     id: int
-    role: Literal['parent', 'child']
+    role: str
     family_id: Optional[int]
-    child_balance: int
     created_at: datetime
+    child_balance: int
 
     class Config:
         orm_mode = True
@@ -29,13 +27,15 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
 class FamilyBase(BaseModel):
     name: Optional[str] = None
-    balance: int = 0
+    balance: Optional[int] = 0
 
 class FamilyCreate(FamilyBase):
-    name: Optional[str] = None
-    balance: Optional[int] = 0
+    pass
 
 class Family(FamilyBase):
     id: int
@@ -50,26 +50,25 @@ class TaskBase(BaseModel):
     done_by_parent: bool = False
 
 class TaskCreate(TaskBase):
-    assigned_to_child_id: Optional[int] = None
-    price: int = 0
+    price: int
+    assigned_to_child_id: Optional[int]
+    family_id: Optional[int]
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    done_by_parent: Optional[bool] = None
-    is_completed: Optional[bool] = None
-    assigned_to_child_id: Optional[int] = None
-
-    class Config:
-        orm_mode = True
+    title: Optional[str]
+    description: Optional[str]
+    done_by_parent: Optional[bool]
+    is_completed: Optional[bool]
+    assigned_to_child_id: Optional[int]
+    family_id: Optional[int]
 
 class Task(TaskBase):
     id: int
-    family_id: Optional[int]
+    price: int
     assigned_to_child_id: Optional[int]
+    family_id: Optional[int]
     is_completed: bool
     created_at: datetime
-    price: int
 
     class Config:
         orm_mode = True
