@@ -9,7 +9,7 @@ class UserBase(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    family_id: int
+    family_id: Optional[int]
 
 class User(UserBase):
     id: int
