@@ -1,102 +1,86 @@
-from decimal import Decimal
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
+ # app/crud.py
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+
 from app import models, schemas
-from app.core.security import verify_password
+from app.database import get_db
 
-def create_family(db: Session, family_in: schemas.FamilyCreate):
-    fam = models.Family(
-        name=family_in.name,
-        account_number=family_in.account_number,
-        balance=Decimal("0.00")
-    )
-    db.add(fam)
-    try:
-        db.commit()
-        db.refresh(fam)
-        return fam
-    except IntegrityError as e:
-        db.rollback()
-        if "account_number" in str(e.orig).lower():
-            raise HTTPException(status_code=400, detail="Account number already registered")
-        raise
+# to get a string like this run:
+# openssl rand -hex 32
+SECRET_KEY = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-def get_family(db: Session, family_id: int):
-    return db.query(models.Family).get(family_id)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
 
-def get_user(db: Session, user_id: int):
-    return db.query(models.User).get(user_id)
+# Password utils
 
-def get_user_by_email(db: Session, email: str):
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+# User getters and creators
+
+def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.email == email).first()
 
-def create_user(db: Session, user_in: schemas.UserCreate, hashed_password: str):
+
+def create_user(db: Session, user_in: schemas.UserCreate, family_id: int) -> models.User:
+    hashed_pw = get_password_hash(user_in.password)
     user = models.User(
         email=user_in.email,
-        hashed_password=hashed_password,
+        hashed_password=hashed_pw,
         role=user_in.role,
-        family_id=user_in.family_id
+        family_id=family_id,
+        child_balance=0,
+        created_at=datetime.utcnow(),
     )
     db.add(user)
-    try:
-        db.commit()
-        db.refresh(user)
-        return user
-    except IntegrityError as e:
-        db.rollback()
-        msg = str(e.orig).lower()
-        if "unique constraint" in msg or "users_email_key" in msg:
-            raise HTTPException(status_code=400, detail="Email already registered")
-        if "foreign key constraint" in msg:
-            raise HTTPException(status_code=400, detail="Family not found")
-        raise
-
-def authenticate_user(db: Session, email: str, password: str):
-    user = get_user_by_email(db, email)
-    if not user or not verify_password(password, user.hashed_password):
-        return None
+    db.commit()
+    db.refresh(user)
     return user
 
-def top_up_family(db: Session, family_id: int, amount: Decimal):
-    fam = db.query(models.Family).get(family_id)
-    if not fam:
-        return None
-    fam.balance += amount
-    db.commit()
-    db.refresh(fam)
-    return fam
+# Authentication
 
-def create_task(db: Session, family_id: int, task_in: schemas.TaskCreate):
-    task = models.Task(
-        task=task_in.task,
-        price=task_in.price,
-        deadline=task_in.deadline,
-        family_id=family_id
+def authenticate_user(db: Session, form_data: OAuth2PasswordRequestForm) -> schemas.Token:
+    user = get_user_by_email(db, form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode = {"sub": user.email, "exp": expire}
+    token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return schemas.Token(access_token=token, token_type="bearer")
+
+# Dependency
+
+def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)) -> models.User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
     )
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    return task
-
-def get_tasks_for_family(db: Session, family_id: int):
-    return db.query(models.Task).filter(models.Task.family_id==family_id, models.Task.archived==False).all()
-
-def mark_done_child(db: Session, task_id: int):
-    task = db.query(models.Task).get(task_id)
-    if not task:
-        return None
-    task.done_by_child = True
-    db.commit()
-    db.refresh(task)
-    return task
-
-def mark_done_parent(db: Session, task_id: int):
-    task = db.query(models.Task).get(task_id)
-    if not task or not task.done_by_child:
-        return None
-    task.done_by_parent = True
-    task.archived = True
-    db.commit()
-    db.refresh(task)
-    return task
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = get_user_by_email(db, email)
+    if user is None:
+        raise credentials_exception
+    return user
