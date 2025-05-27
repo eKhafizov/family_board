@@ -4,7 +4,6 @@ from typing import Optional, Literal
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
-# ——— User —————————————————————————————————————————
 class UserBase(BaseModel):
     email: EmailStr
 
@@ -12,7 +11,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: Literal['parent', 'child']
-    # Для ребёнка: укажите либо family_id, либо email родителя
+    # Для ребёнка: укажите либо parent_family_id, либо parent_email
     parent_family_id: Optional[int] = None
     parent_email: Optional[EmailStr] = None
 
@@ -26,17 +25,10 @@ class User(UserBase):
     class Config:
         orm_mode = True
 
-
-# ——— Token ————————————————————————————————————————
 class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    email: Optional[str] = None
-
-
-# ——— Family ——————————————————————————————————————
 class FamilyBase(BaseModel):
     name: Optional[str] = None
     balance: int = 0
@@ -52,8 +44,6 @@ class Family(FamilyBase):
     class Config:
         orm_mode = True
 
-
-# ——— Task ————————————————————————————————————————
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -84,12 +74,7 @@ class Task(TaskBase):
     class Config:
         orm_mode = True
 
-
-# ——— TopUp ————————————————————————————————————————
 class TopUp(BaseModel):
-    amount: int  # сколько добавить
-
+    amount: int
     class Config:
-        schema_extra = {
-            "example": {"amount": 100}
-        }
+        schema_extra = {"example": {"amount": 100}}
