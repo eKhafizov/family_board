@@ -1,4 +1,6 @@
-from typing import Optional, List
+# app/schemas.py
+
+from typing import Optional, Literal
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
@@ -9,17 +11,21 @@ class UserBase(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    family_id: Optional[int]
+    role: Literal['parent', 'child']
+    # Для ребёнка: укажите либо family_id, либо email родителя
+    parent_family_id: Optional[int] = None
+    parent_email: Optional[EmailStr] = None
 
 class User(UserBase):
     id: int
-    role: str
+    role: Literal['parent', 'child']
     family_id: Optional[int]
-    created_at: datetime
     child_balance: int
+    created_at: datetime
 
     class Config:
         orm_mode = True
+
 
 # ——— Token ————————————————————————————————————————
 class Token(BaseModel):
@@ -29,24 +35,23 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
+
 # ——— Family ——————————————————————————————————————
 class FamilyBase(BaseModel):
     name: Optional[str] = None
-    balance: Optional[int] = 0
+    balance: int = 0
 
 class FamilyCreate(FamilyBase):
-    # pass
-    name: Optional[str]
+    name: Optional[str] = None
     balance: Optional[int] = 0
 
 class Family(FamilyBase):
     id: int
     created_at: datetime
-    balance: int
-    
 
     class Config:
         orm_mode = True
+
 
 # ——— Task ————————————————————————————————————————
 class TaskBase(BaseModel):
@@ -54,25 +59,19 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     done_by_parent: bool = False
 
+class TaskCreate(TaskBase):
+    assigned_to_child_id: Optional[int] = None
+    price: int = 0
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     done_by_parent: Optional[bool] = None
     is_completed: Optional[bool] = None
-    family_id: Optional[int] = None
     assigned_to_child_id: Optional[int] = None
 
     class Config:
         orm_mode = True
-        
-        
-class TaskCreate(TaskBase):
-    assigned_to_child_id: Optional[int] = None
-    family_id: Optional[int] = None
-    title: str
-    description: Optional[str] = None
-    price: int
 
 class Task(TaskBase):
     id: int
@@ -80,12 +79,13 @@ class Task(TaskBase):
     assigned_to_child_id: Optional[int]
     is_completed: bool
     created_at: datetime
-    price: int # добавил 
+    price: int
 
     class Config:
         orm_mode = True
 
 
+# ——— TopUp ————————————————————————————————————————
 class TopUp(BaseModel):
     amount: int  # сколько добавить
 

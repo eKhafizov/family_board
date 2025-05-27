@@ -1,75 +1,85 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+# app/routers/users.py
+
+from fastapi import APIRouter, Depends, HTTPException, Body, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
-from app import models, schemas
-from app.database import SessionLocal
-from app.security import get_password_hash, verify_password, create_access_token, get_current_user
+from pydantic import EmailStr
 
-# Зависимость для доступа к БД
+from app import models, schemas, security
+from app.database import get_db
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+router = APIRouter(prefix="/users", tags=["users"])
 
-# Модель для логина по JSON {username, password}
-class LoginData(BaseModel):
-    username: EmailStr
-    password: str
 
-router = APIRouter()
-
-# Регистрация пользователя
 @router.post(
     "/register",
     response_model=schemas.User,
     status_code=status.HTTP_201_CREATED,
 )
-def register(
-    user_in: schemas.UserCreate,
+def register_user(
+    user_in: schemas.UserCreate = Body(...),
     db: Session = Depends(get_db),
 ):
-    if db.query(models.User).filter_by(email=user_in.email).first():
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "Email already registered",
-        )
-    user = models.User(
-        email=user_in.email,
-        full_name=user_in.email,
-        hashed_password=get_password_hash(user_in.password),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    # Проверка роли
+    if user_in.role not in ("parent", "child"):
+        raise HTTPException(status_code=400, detail="role must be 'parent' or 'child'")
 
-# Логин и получение токена
-@router.post(
-    "/token",
-    response_model=schemas.Token,
-)
-def login(
-    data: LoginData,
+    # 1) Родитель: создаём новую семью
+    if user_in.role == "parent":
+        new_family = models.Family(name="")
+        db.add(new_family)
+        db.commit()
+        db.refresh(new_family)
+        family_id = new_family.id
+
+    # 2) Ребёнок: family_id или parent_email обязательно
+    else:
+        if not user_in.parent_family_id and not user_in.parent_email:
+            raise HTTPException(
+                status_code=400,
+                detail="Для ребёнка необходимо указать parent_family_id или parent_email"
+            )
+        if user_in.parent_family_id:
+            fam = db.query(models.Family).filter_by(id=user_in.parent_family_id).first()
+        else:
+            # ищем по email родителя
+            parent = db.query(models.User).filter_by(email=user_in.parent_email, role="parent").first()
+            if not parent:
+                raise HTTPException(status_code=404, detail="Parent not found")
+            fam = db.query(models.Family).filter_by(id=parent.family_id).first()
+        if not fam:
+            raise HTTPException(status_code=404, detail="Family not found")
+        family_id = fam.id
+
+    # 3) Хешируем пароль и создаём пользователя
+    hashed_pw = security.get_password_hash(user_in.password)
+    new_user = models.User(
+        email=user_in.email,
+        hashed_password=hashed_pw,
+        role=user_in.role,
+        family_id=family_id,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+@router.post("/token", response_model=schemas.Token)
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    user = db.query(models.User).filter_by(email=data.username).first()
-    if not user or not verify_password(data.password, user.hashed_password):
+    user = security.authenticate_user(db, form_data.username, form_data.password)
+    if not user:
         raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED,
-            "Incorrect email or password",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
         )
-    token = create_access_token({"sub": user.email})
+    token = security.create_access_token({"sub": user.email})
     return {"access_token": token, "token_type": "bearer"}
 
-# Получение информации о текущем пользователе
-@router.get(
-    "/me",
-    response_model=schemas.User,
-)
-def read_me(
-    current_user: models.User = Depends(get_current_user),
-):
+
+@router.get("/me", response_model=schemas.User)
+def read_users_me(current_user: models.User = Depends(security.get_current_user)):
     return current_user
